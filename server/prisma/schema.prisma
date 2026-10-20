@@ -1,0 +1,155 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  customer
+  studio
+}
+
+enum PaintingStatus {
+  available
+  sold
+}
+
+enum OrderStatus {
+  placed
+  cancelled
+}
+
+enum WallBookingStatus {
+  requested
+  confirmed
+  declined
+  cancelled
+}
+
+enum PotteryRequestStatus {
+  requested
+  accepted
+  declined
+  cancelled
+}
+
+model User {
+  id           String           @id @default(cuid())
+  email        String           @unique
+  passwordHash String
+  name         String
+  role         Role             @default(customer)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  paintingOrders  PaintingOrder[]
+  wallBookings    WallBooking[]
+  potteryRequests PotteryRequest[]
+
+  @@index([email])
+}
+
+model Painting {
+  id          String         @id
+  title       String
+  artist      String
+  description String         @db.Text
+  price       Float
+  imageUrl    String
+  status      PaintingStatus @default(available)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  orders PaintingOrder[]
+
+  @@index([status])
+}
+
+model PaintingOrder {
+  id          String      @id @default(cuid())
+  customerId  String
+  paintingId  String
+  totalAmount Float
+  status      OrderStatus @default(placed)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  customer User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  painting Painting @relation(fields: [paintingId], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+  @@index([paintingId])
+  @@index([status])
+}
+
+model WallPaintingRate {
+  id          String   @id @default(cuid())
+  ratePerSqFt Float    @default(150.0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WallBooking {
+  id             String            @id @default(cuid())
+  customerId     String
+  bookingDate    DateTime          @db.Date
+  wallSizeSqFt   Float
+  ratePerSqFt    Float             @default(150.0)
+  totalPrice     Float
+  serviceAddress String            @db.Text
+  status         WallBookingStatus @default(requested)
+  notes          String?           @db.Text
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  customer User @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([bookingDate])
+  @@index([status])
+}
+
+model PotteryItem {
+  id        String   @id
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  requests PotteryRequest[]
+}
+
+model PotteryGlaze {
+  id        String   @id
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  requests PotteryRequest[]
+}
+
+model PotteryRequest {
+  id             String               @id @default(cuid())
+  customerId     String
+  potteryItemId  String
+  potteryGlazeId String
+  quantity       Int
+  neededByDate   DateTime             @db.Date
+  status         PotteryRequestStatus @default(requested)
+  notes          String?              @db.Text
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  customer User         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  item     PotteryItem  @relation(fields: [potteryItemId], references: [id], onDelete: Restrict)
+  glaze    PotteryGlaze @relation(fields: [potteryGlazeId], references: [id], onDelete: Restrict)
+
+  @@index([customerId])
+  @@index([potteryItemId])
+  @@index([potteryGlazeId])
+  @@index([status])
+}

@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production
+dist/
+build/
+
+# Misc
+.DS_Store
+*.pem
+__MACOSX/
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local environment files & secrets (PROTECTED)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+server/.env
+server/.env.local
+server/.env.*.local
+server/.env.development
+server/.env.production
+server/.env.test
+client/.env
+client/.env.local
+client/.env.*.local
+client/.env.development
+client/.env.production
+client/.env.test
+
+# Explicitly whitelist example templates
+!.env.example
+!server/.env.example
+!client/.env.example
+
+# Vite / IDE
+.vite/
+.vscode/
+.idea/

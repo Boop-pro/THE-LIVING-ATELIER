@@ -1,0 +1,20 @@
+{
+  "name": "the-living-atelier",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Living Atelier — Art Isn't Meant to Blend In. Full-Stack Art Studio Website",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "build:server": "npm run build --prefix server",
+    "build:client": "npm run build --prefix client",
+    "build": "npm run build:server && npm run build:client",
+    "test": "npm run test --prefix server",
+    "prisma:generate": "npm run prisma:generate --prefix server",
+    "prisma:seed": "npm run prisma:seed --prefix server"
+  }
+}
