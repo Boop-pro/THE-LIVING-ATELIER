@@ -49,3 +49,6 @@ client/.env.test
 .vite/
 .vscode/
 .idea/
+
+.vercel
+.env*
