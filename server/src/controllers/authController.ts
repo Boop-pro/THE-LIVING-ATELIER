@@ -6,12 +6,16 @@ import { config } from '../config';
 import { AppError } from '../middleware/errorHandler';
 import { registerSchema, loginSchema } from '../validators';
 
-const getCookieOptions = () => ({
-  httpOnly: true,
-  secure: config.isProduction,
-  sameSite: (config.isProduction ? 'none' : 'lax') as 'none' | 'lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-});
+export const getCookieOptions = (req?: Request) => {
+  const isHttps = req ? (req.secure || req.headers['x-forwarded-proto'] === 'https') : false;
+  const isCrossSite = config.isProduction || isHttps;
+  return {
+    httpOnly: true,
+    secure: isCrossSite,
+    sameSite: (isCrossSite ? 'none' : 'lax') as 'none' | 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  };
+};
 
 export class AuthController {
   static async register(req: Request, res: Response, next: NextFunction) {
@@ -55,7 +59,7 @@ export class AuthController {
       );
 
       // Set HTTP-only cookie
-      res.cookie('atelier_jwt', token, getCookieOptions());
+      res.cookie('atelier_jwt', token, getCookieOptions(req));
 
       res.status(201).json({
         success: true,
@@ -95,7 +99,7 @@ export class AuthController {
         { expiresIn: config.jwtExpiresIn } as jwt.SignOptions
       );
 
-      res.cookie('atelier_jwt', token, getCookieOptions());
+      res.cookie('atelier_jwt', token, getCookieOptions(req));
 
       res.json({
         success: true,
@@ -115,11 +119,7 @@ export class AuthController {
 
   static async logout(req: Request, res: Response, next: NextFunction) {
     try {
-      res.clearCookie('atelier_jwt', {
-        httpOnly: true,
-        secure: config.isProduction,
-        sameSite: (config.isProduction ? 'none' : 'lax') as 'none' | 'lax',
-      });
+      res.clearCookie('atelier_jwt', getCookieOptions(req));
 
       res.json({
         success: true,

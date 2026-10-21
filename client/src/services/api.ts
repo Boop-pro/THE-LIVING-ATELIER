@@ -1,4 +1,19 @@
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
+const rawApiUrl = (import.meta as any).env?.VITE_API_URL || '/api';
+
+/**
+ * Normalizes the API base URL to ensure clean, consistent paths:
+ * - Trims whitespace and trailing slashes
+ * - Guarantees '/api' suffix (e.g. 'https://host.onrender.com' -> 'https://host.onrender.com/api')
+ * - Prevents duplicate '/api/api'
+ * - Falls back to '/api' for local Vite proxy
+ */
+export function normalizeApiUrl(base: string): string {
+  if (!base || base === '/api') return '/api';
+  const trimmed = base.trim().replace(/\/+$/, '');
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+}
+
+const API_BASE_URL = normalizeApiUrl(rawApiUrl);
 
 export class ApiError extends Error {
   statusCode: number;
@@ -13,9 +28,14 @@ export class ApiError extends Error {
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE_URL}${cleanEndpoint}`;
+  
+  // Dual authentication: attach Bearer token from localStorage for cross-origin resiliency
+  const token = typeof window !== 'undefined' ? localStorage.getItem('atelier_token') : null;
   const headers = {
     'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
 
@@ -40,22 +60,39 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const api = {
   // Authentication
-  register: (body: { name: string; email: string; password: string }) =>
-    request<{ success: boolean; user: any; token: string }>('/auth/register', {
+  register: async (body: { name: string; email: string; password: string }) => {
+    const res = await request<{ success: boolean; user: any; token: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(body),
-    }),
+    });
+    if (res.token && typeof window !== 'undefined') {
+      localStorage.setItem('atelier_token', res.token);
+    }
+    return res;
+  },
 
-  login: (body: { email: string; password: string }) =>
-    request<{ success: boolean; user: any; token: string }>('/auth/login', {
+  login: async (body: { email: string; password: string }) => {
+    const res = await request<{ success: boolean; user: any; token: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(body),
-    }),
+    });
+    if (res.token && typeof window !== 'undefined') {
+      localStorage.setItem('atelier_token', res.token);
+    }
+    return res;
+  },
 
-  logout: () =>
-    request<{ success: boolean; message: string }>('/auth/logout', {
-      method: 'POST',
-    }),
+  logout: async () => {
+    try {
+      return await request<{ success: boolean; message: string }>('/auth/logout', {
+        method: 'POST',
+      });
+    } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('atelier_token');
+      }
+    }
+  },
 
   getCurrentUser: () =>
     request<{ success: boolean; user: any }>('/auth/me', {

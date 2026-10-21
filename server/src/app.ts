@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import path from 'path';
 import fs from 'fs';
 import { config } from './config';
+import { prisma } from './prisma';
 import apiRouter from './routes';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -50,10 +51,26 @@ export const createApp = () => {
   app.use(cookieParser(config.cookieSecret));
 
   // Top-level Health Check (for Render / cloud ping monitors)
-  app.get('/health', (req, res) => {
-    res.json({
-      status: 'ok',
+  app.get('/health', async (req, res) => {
+    let dbStatus = 'disconnected';
+    let dbError: string | null = null;
+    try {
+      if (!process.env.DATABASE_URL && !config.databaseUrl) {
+        throw new Error('DATABASE_URL environment variable is not configured');
+      }
+      await prisma.$queryRaw`SELECT 1`;
+      dbStatus = 'connected';
+    } catch (err: any) {
+      dbError = err.message || 'Database connection error';
+    }
+
+    const isHealthy = dbStatus === 'connected';
+    res.status(isHealthy ? 200 : 503).json({
+      status: isHealthy ? 'ok' : 'degraded',
       app: 'The Living Atelier API',
+      database: dbStatus,
+      databaseConfigured: !!(process.env.DATABASE_URL || config.databaseUrl),
+      ...(dbError ? { error: dbError } : {}),
       timestamp: new Date().toISOString(),
     });
   });
